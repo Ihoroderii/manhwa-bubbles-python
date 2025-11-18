@@ -26,6 +26,9 @@ setup(
     install_requires=[
         "Pillow>=8.0.0",
     ],
+    extras_require={
+        "cairo": ["pycairo>=1.20.0"],
+    },
     keywords="manhwa, comics, speech bubbles, graphics, PIL, drawing",
     project_urls={
         "Bug Reports": "https://github.com/ihoroderii/manhwa-bubbles/issues",

@@ -33,7 +33,7 @@ def _clamp(v, lo, hi):
 
 def create_overlapping_circles_square(ctx, cx, cy, base_width, base_height,
                                       text="OVERLAP!", circle_style="varied", show_full_ovals=True,
-                                      return_circles=False):
+                                      return_circles=False, background_color=None):
     """Create a rectangle with overlapping circles/ovals on all sides.
     If show_full_ovals is False, only the emphasized interior crossing segments are rendered (minimal manga style)."""
     
@@ -61,7 +61,14 @@ def create_overlapping_circles_square(ctx, cx, cy, base_width, base_height,
 
     # Extra laugh style embellishments (after circles so we can sit beneath emphasized arcs if minimal mode)
     if circle_style == "laugh":
-        draw_laugh_energy_lines(ctx, cx, cy, half_width, half_height, all_circles)
+        # Detect background color from canvas (if not transparent)
+        bg_color = None
+        if not TRANSPARENT_CANVAS:
+            # Try to sample background color from center of canvas
+            # For now, we'll pass None and let the function use default
+            # User can override by checking canvas background manually
+            pass
+        draw_laugh_energy_lines(ctx, cx, cy, half_width, half_height, all_circles, background_color=bg_color)
     
     # Draw only the parts of rectangle border that are NOT covered by circles
     if show_full_ovals:
@@ -372,11 +379,35 @@ def generate_circles_for_side(start_x, start_y, end_x, end_y, side_name, style,
     
     return circles
 
-def draw_laugh_energy_lines(ctx, cx, cy, half_width, half_height, circles):
+def draw_laugh_energy_lines(ctx, cx, cy, half_width, half_height, circles, background_color=None):
     """Add radiating short energy ticks around exterior to suggest explosive laughter.
-    Drawn very lightly so they don't dominate the ink arcs."""
+    Drawn very lightly so they don't dominate the ink arcs.
+    
+    Args:
+        background_color: Optional tuple (r, g, b, a) or (r, g, b) for background color.
+                         If None or light, uses black lines. If dark, uses white/yellow lines.
+    """
     ctx.save()
-    ctx.set_source_rgba(0,0,0,0.65)
+    
+    # Determine line color based on background
+    if background_color is not None:
+        # Extract RGB values (handle both 3 and 4 component tuples)
+        if len(background_color) >= 3:
+            bg_r, bg_g, bg_b = background_color[0], background_color[1], background_color[2]
+            # Calculate luminance to determine if background is dark
+            luminance = 0.299 * bg_r + 0.587 * bg_g + 0.114 * bg_b
+            
+            if luminance < 0.5:  # Dark background
+                # Use bright color (white or yellow) for contrast
+                ctx.set_source_rgba(1.0, 1.0, 0.7, 0.8)  # Light yellow/white
+            else:  # Light background
+                ctx.set_source_rgba(0, 0, 0, 0.65)  # Black
+        else:
+            ctx.set_source_rgba(0, 0, 0, 0.65)  # Default black
+    else:
+        # Default: assume light background, use black lines
+        ctx.set_source_rgba(0, 0, 0, 0.65)
+    
     ctx.set_line_width(2.0)
     num_rays = 18
     # Radius just outside bounding box of circles

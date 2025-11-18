@@ -77,7 +77,7 @@ def generate_overlapping_bubble(width=180, height=120, style='organic', show_ful
         _draw_full_circles(ctx, circles)
 
     if style == 'laugh' and DRAW_LAUGH_ENERGY:
-        _draw_laugh_energy_lines(ctx, cx, cy, half_w, half_h, circles)
+        _draw_laugh_energy_lines(ctx, cx, cy, half_w, half_h, circles, background_color=background_color)
 
     if not show_full_ovals and FILL_GAPS_ONLY:
         _fill_rectangle_gaps_only(ctx, circles, cx, cy, half_w, half_h)
@@ -291,9 +291,34 @@ def _emphasize_interior_arcs(ctx, circles, cx, cy, hw, hh):
             ctx.stroke()
     ctx.restore()
 
-def _draw_laugh_energy_lines(ctx, cx, cy, hw, hh, circles):
+def _draw_laugh_energy_lines(ctx, cx, cy, hw, hh, circles, background_color=None):
+    """Draw laugh energy lines with background-aware color.
+    
+    Args:
+        background_color: Optional tuple (r, g, b, a) or (r, g, b) for background color.
+                         If dark, uses bright lines; if light, uses black lines.
+    """
     ctx.save()
-    ctx.set_source_rgba(0,0,0,0.65)
+    
+    # Determine line color based on background
+    if background_color is not None:
+        # Extract RGB values (handle both 3 and 4 component tuples)
+        if len(background_color) >= 3:
+            bg_r, bg_g, bg_b = background_color[0], background_color[1], background_color[2]
+            # Calculate luminance to determine if background is dark
+            luminance = 0.299 * bg_r + 0.587 * bg_g + 0.114 * bg_b
+            
+            if luminance < 0.5:  # Dark background
+                # Use bright color (white or yellow) for contrast
+                ctx.set_source_rgba(1.0, 1.0, 0.7, 0.8)  # Light yellow/white
+            else:  # Light background
+                ctx.set_source_rgba(0, 0, 0, 0.65)  # Black
+        else:
+            ctx.set_source_rgba(0, 0, 0, 0.65)  # Default black
+    else:
+        # Default: assume light background, use black lines
+        ctx.set_source_rgba(0, 0, 0, 0.65)
+    
     ctx.set_line_width(2.0)
     num_rays = 18
     outer_rx = hw + 24

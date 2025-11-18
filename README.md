@@ -29,6 +29,11 @@ pip install -e .
 pip install manhwa-bubbles
 ```
 
+### With Cairo Support (for organic overlapping bubbles)
+```bash
+pip install manhwa-bubbles[cairo]
+```
+
 ## Quick Start
 
 ```python
@@ -157,6 +162,7 @@ Returned `surface` is a Cairo `ImageSurface`; you can composite or convert to Pi
 
 - Python 3.6+
 - Pillow (PIL) 8.0.0+
+- pycairo>=1.20.0 (optional, required for `generate_overlapping_bubble`)
 
 ## License
 

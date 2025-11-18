@@ -128,3 +128,20 @@ dmypy.json
 *.jpeg
 *.gif
 *.bmp
+
+# Test outputs
+tests/*.png
+tests/*.jpg
+examples/experiments/*.png
+examples/experiments/*.jpg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
