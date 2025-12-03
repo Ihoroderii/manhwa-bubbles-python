@@ -1,4 +1,4 @@
-import cairo
+ import cairo
 from adaptive_bubbles import adaptive_circle_bubble, adaptive_square_bubble
 
 PANEL_SIZE = (800,1200)  # width, height
