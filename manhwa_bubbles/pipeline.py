@@ -120,17 +120,40 @@ def _draw_tail_pil(draw: ImageDraw.ImageDraw,
     attach_x = bcx + half_w * 0.8 * ux
     attach_y = bcy + half_h * 0.8 * uy
 
-    tail_len = min(50, dist * 0.4)
+    tail_len = min(80, dist * 0.5)
     tip_x = attach_x + ux * tail_len
     tip_y = attach_y + uy * tail_len
 
+    # Perpendicular direction for tail width
     px, py = -uy, ux
-    tw = 12
-    p1 = (attach_x + px * tw, attach_y + py * tw)
-    p2 = (attach_x - px * tw, attach_y - py * tw)
+    tw = 18
+    base_left  = (attach_x + px * tw, attach_y + py * tw)
+    base_right = (attach_x - px * tw, attach_y - py * tw)
     tip = (tip_x, tip_y)
 
-    draw.polygon([p1, p2, tip], fill="white", outline="black")
+    # Bezier control points for smooth curved edges — slight outward bow
+    cp_l = (attach_x + px * tw * 0.5 + ux * tail_len * 0.5,
+            attach_y + py * tw * 0.5 + uy * tail_len * 0.5)
+    cp_r = (attach_x - px * tw * 0.5 + ux * tail_len * 0.5,
+            attach_y - py * tw * 0.5 + uy * tail_len * 0.5)
+
+    # Build smooth polygon via cubic Bezier sampling
+    steps = 12
+    points = []
+    for i in range(steps + 1):
+        t = i / steps
+        u = 1 - t
+        bx = u**3*base_left[0] + 3*u**2*t*cp_l[0] + 3*u*t**2*cp_l[0] + t**3*tip[0]
+        by = u**3*base_left[1] + 3*u**2*t*cp_l[1] + 3*u*t**2*cp_l[1] + t**3*tip[1]
+        points.append((bx, by))
+    for i in range(steps, -1, -1):
+        t = i / steps
+        u = 1 - t
+        bx = u**3*base_right[0] + 3*u**2*t*cp_r[0] + 3*u*t**2*cp_r[0] + t**3*tip[0]
+        by = u**3*base_right[1] + 3*u**2*t*cp_r[1] + 3*u*t**2*cp_r[1] + t**3*tip[1]
+        points.append((bx, by))
+
+    draw.polygon(points, fill="white", outline="black", width=2)
 
 
 def _render_pil_bubble(draw: ImageDraw.ImageDraw,

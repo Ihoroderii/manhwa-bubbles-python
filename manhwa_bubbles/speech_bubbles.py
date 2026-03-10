@@ -88,24 +88,64 @@ def bubble_scratchy(draw, xy, text):
     draw.text((x+10, y+10), text, font=font, fill="black")
 
 
-def draw_tail(draw, x, y, direction="down"):
+def _bezier_point(t, p0, p1, p2, p3):
+    """Evaluate cubic Bezier at parameter t."""
+    u = 1 - t
+    return (
+        u*u*u*p0[0] + 3*u*u*t*p1[0] + 3*u*t*t*p2[0] + t*t*t*p3[0],
+        u*u*u*p0[1] + 3*u*u*t*p1[1] + 3*u*t*t*p2[1] + t*t*t*p3[1],
+    )
+
+
+def draw_tail(draw, x, y, direction="down", length=35, width=22):
     """
-    Draws a simple triangular tail pointing in a direction.
-    
+    Draws a smooth curved tail using Bezier approximation.
+
     Args:
         draw: PIL ImageDraw object
-        x, y: Position coordinates for the tail
+        x, y: Attachment point on the bubble edge
         direction: Direction for the tail ("down", "up", "left", "right")
+        length: How far the tail extends
+        width: Width of tail at the base
     """
+    hw = width / 2
+    steps = 12  # number of segments for smooth curve
+
     if direction == "down":
-        points = [(x, y), (x+20, y+30), (x-20, y+30)]
+        left  = (x - hw, y)
+        right = (x + hw, y)
+        tip   = (x, y + length)
+        cp_l  = (x - hw * 0.4, y + length * 0.6)
+        cp_r  = (x + hw * 0.4, y + length * 0.6)
     elif direction == "up":
-        points = [(x, y), (x+20, y-30), (x-20, y-30)]
+        left  = (x - hw, y)
+        right = (x + hw, y)
+        tip   = (x, y - length)
+        cp_l  = (x - hw * 0.4, y - length * 0.6)
+        cp_r  = (x + hw * 0.4, y - length * 0.6)
     elif direction == "left":
-        points = [(x, y), (x-30, y-20), (x-30, y+20)]
+        left  = (x, y - hw)
+        right = (x, y + hw)
+        tip   = (x - length, y)
+        cp_l  = (x - length * 0.6, y - hw * 0.4)
+        cp_r  = (x - length * 0.6, y + hw * 0.4)
     else:  # right
-        points = [(x, y), (x+30, y-20), (x+30, y+20)]
-    draw.polygon(points, fill="white", outline="black")
+        left  = (x, y - hw)
+        right = (x, y + hw)
+        tip   = (x + length, y)
+        cp_l  = (x + length * 0.6, y - hw * 0.4)
+        cp_r  = (x + length * 0.6, y + hw * 0.4)
+
+    # Build smooth polygon: left edge curve -> tip -> right edge curve back
+    points = []
+    for i in range(steps + 1):
+        t = i / steps
+        points.append(_bezier_point(t, left, cp_l, cp_l, tip))
+    for i in range(steps, -1, -1):
+        t = i / steps
+        points.append(_bezier_point(t, right, cp_r, cp_r, tip))
+
+    draw.polygon(points, fill="white", outline="black", width=2)
 
 
 def speech_bubble(draw, xy, text, bubble_type="oval", tail_dir="down"):

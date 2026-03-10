@@ -68,7 +68,9 @@ DEFAULT_FONT = ImageFont.load_default()
 # Utility helpers -------------------------------------------------
 
 def _center_text(draw, x, y, w, h, text, font, fill):
-    tw, th = draw.textlength(text, font=font), font.size
+    bbox = draw.textbbox((0, 0), text, font=font)
+    tw = bbox[2] - bbox[0]
+    th = bbox[3] - bbox[1]
     draw.text((x + (w - tw)/2, y + (h - th)/2), text, font=font, fill=fill)
 
 def _jitter_points(base_points, amp):

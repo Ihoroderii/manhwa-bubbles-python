@@ -277,11 +277,16 @@ def adaptive_circle_bubble(text, variant='radial5', target_inner_padding=20,
         p1y = attach_y + py * tail_w * 0.5
         p2x = attach_x - px * tail_w * 0.5
         p2y = attach_y - py * tail_w * 0.5
+        # Smooth curved tail using Bezier control points
+        cp1x = p1x + ux * tail_len * 0.5 + px * tail_w * 0.15
+        cp1y = p1y + uy * tail_len * 0.5 + py * tail_w * 0.15
+        cp2x = p2x + ux * tail_len * 0.5 - px * tail_w * 0.15
+        cp2y = p2y + uy * tail_len * 0.5 - py * tail_w * 0.15
         ctx.save()
         ctx.set_source_rgba(1,1,1,1)
         ctx.move_to(p1x, p1y)
-        ctx.line_to(p2x, p2y)
-        ctx.line_to(tip_x, tip_y)
+        ctx.curve_to(cp1x, cp1y, tip_x, tip_y, tip_x, tip_y)
+        ctx.curve_to(tip_x, tip_y, cp2x, cp2y, p2x, p2y)
         ctx.close_path()
         ctx.fill_preserve()
         ctx.set_source_rgba(0,0,0,0.95)
@@ -472,11 +477,16 @@ def adaptive_square_bubble(text, target_inner_padding=20, canvas_size=(600,600),
         p1y = attach_y + py * tail_w * 0.5
         p2x = attach_x - px * tail_w * 0.5
         p2y = attach_y - py * tail_w * 0.5
+        # Smooth curved tail using Bezier control points
+        cp1x = p1x + ux * tail_len * 0.5 + px * tail_w * 0.15
+        cp1y = p1y + uy * tail_len * 0.5 + py * tail_w * 0.15
+        cp2x = p2x + ux * tail_len * 0.5 - px * tail_w * 0.15
+        cp2y = p2y + uy * tail_len * 0.5 - py * tail_w * 0.15
         ctx.save()
         ctx.set_source_rgba(1,1,1,1)
         ctx.move_to(p1x, p1y)
-        ctx.line_to(p2x, p2y)
-        ctx.line_to(tip_x, tip_y)
+        ctx.curve_to(cp1x, cp1y, tip_x, tip_y, tip_x, tip_y)
+        ctx.curve_to(tip_x, tip_y, cp2x, cp2y, p2x, p2y)
         ctx.close_path()
         ctx.fill_preserve()
         ctx.set_source_rgba(0,0,0,0.95)
