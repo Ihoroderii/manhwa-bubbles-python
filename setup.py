@@ -22,12 +22,18 @@ setup(
         "Topic :: Multimedia :: Graphics",
         "Topic :: Artistic Software",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.8",
     install_requires=[
         "Pillow>=8.0.0",
     ],
     extras_require={
         "cairo": ["pycairo>=1.20.0"],
+        "yolo": [
+            "ultralytics>=8.0.0",
+            "opencv-python>=4.8.0",
+            "numpy>=1.24.0",
+        ],
+        "test": ["pytest>=7.0.0"],
     },
     keywords="manhwa, comics, speech bubbles, graphics, PIL, drawing",
     project_urls={

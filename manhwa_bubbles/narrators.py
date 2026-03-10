@@ -44,15 +44,14 @@ def narrator_dashed(draw, xy, text):
         text: Text to display in the narration box
     """
     x, y, w, h = xy
-    # Dashed rectangle (drawn manually)
+    draw.rectangle((x, y, x+w, y+h), fill="white")
     step = 10
     for i in range(x, x+w, step):
-        draw.line((i, y, min(i+5, x+w), y), fill="black", width=2)  # top
-        draw.line((i, y+h, min(i+5, x+w), y+h), fill="black", width=2)  # bottom
+        draw.line((i, y, min(i+5, x+w), y), fill="black", width=2)
+        draw.line((i, y+h, min(i+5, x+w), y+h), fill="black", width=2)
     for j in range(y, y+h, step):
-        draw.line((x, j, x, min(j+5, y+h)), fill="black", width=2)  # left
-        draw.line((x+w, j, x+w, min(j+5, y+h)), fill="black", width=2)  # right
-    draw.rectangle((x, y, x+w, y+h), fill="white")
+        draw.line((x, j, x, min(j+5, y+h)), fill="black", width=2)
+        draw.line((x+w, j, x+w, min(j+5, y+h)), fill="black", width=2)
     font = ImageFont.load_default()
     draw.text((x+10, y+10), text, font=font, fill="black")
 

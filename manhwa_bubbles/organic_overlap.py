@@ -36,7 +36,7 @@ def _ensure_cairo():
         )
 
 def generate_overlapping_bubble(width=180, height=120, style='organic', show_full_ovals=False,
-                                 seed=None, laugh=False):
+                                 seed=None, laugh=False, background_color=None):
     """Generate an organic overlapping-ovals speech bubble as a Cairo ImageSurface.
 
     Args:
@@ -45,6 +45,8 @@ def generate_overlapping_bubble(width=180, height=120, style='organic', show_ful
         show_full_ovals: If True, draw full ovals; else minimal interior arcs mode.
         seed: Optional RNG seed for reproducibility.
         laugh: Convenience flag (if True forces style='laugh').
+        background_color: Optional (r, g, b) or (r, g, b, a) tuple for
+            background-aware laugh energy line coloring.
 
     Returns:
         (surface, ctx) tuple with rendered bubble on ARGB32 surface.

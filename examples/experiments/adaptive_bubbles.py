@@ -92,38 +92,56 @@ def _wrap_two_lines(ctx, text, max_width, start_size, min_font_size, line_spacin
     """Attempt to wrap text into up to two lines. Shrink font if needed.
     Returns: (font_size, lines:list[str], metrics:[(w,h,xb,yb,xa,ya)], total_height, wrapped:bool)
     """
+    return _wrap_n_lines(ctx, text, max_width, start_size, min_font_size, max_lines=2, line_spacing=line_spacing)
+
+
+def _wrap_n_lines(ctx, text, max_width, start_size, min_font_size, max_lines=4, line_spacing=1.1):
+    """Wrap text into up to max_lines. Shrink font if needed.
+    Returns: (font_size, lines:list[str], metrics:[(w,h,xb,yb,xa,ya)], total_height, wrapped:bool)
+    """
     words = text.split()
     if len(words) <= 1:
         ctx.set_font_size(start_size)
         xb,yb,w,h,xa,ya = ctx.text_extents(text)
         return start_size, [text], [(w,h,xb,yb,xa,ya)], h, False
+
     size = start_size
     while size >= min_font_size:
         ctx.set_font_size(size)
-        # Greedy line build for up to two lines
-        line1 = []
-        for i,w in enumerate(words):
-            trial = (" ".join(line1 + [w])).strip()
-            xb,yb,wid,hei,xa,ya = ctx.text_extents(trial)
-            if wid > max_width and line1:
-                # line1 finished
-                remaining = words[i:]
-                line2 = " ".join(remaining)
-                xb2,yb2,wid2,hei2,xa2,ya2 = ctx.text_extents(line2)
-                if wid2 <= max_width:
-                    total_h = hei + hei2*line_spacing
-                    return size, [" ".join(line1), line2], [(wid,hei,xb,yb,xa,ya),(wid2,hei2,xb2,yb2,xa2,ya2)], total_h, True
-                else:
-                    break  # need to shrink
+        lines_out = []
+        remaining = words[:]
+        for _ in range(max_lines - 1):
+            if not remaining:
+                break
+            line_words = []
+            for i, w in enumerate(remaining):
+                trial = (" ".join(line_words + [w])).strip()
+                xb,yb,wid,hei,xa,ya = ctx.text_extents(trial)
+                if wid > max_width and line_words:
+                    lines_out.append(" ".join(line_words))
+                    remaining = remaining[i:]
+                    break
+                line_words.append(w)
             else:
-                line1.append(w)
-        else:
-            # all words fit in one line
-            full = " ".join(line1)
-            xb,yb,wid,hei,xa,ya = ctx.text_extents(full)
-            return size, [full], [(wid,hei,xb,yb,xa,ya)], hei, False
+                lines_out.append(" ".join(line_words))
+                remaining = []
+                break
+        if remaining:
+            lines_out.append(" ".join(remaining))
+
+        line_metrics = []
+        total_h = 0
+        n = len(lines_out)
+        for i, ln in enumerate(lines_out):
+            xb,yb,wid,hei,xa,ya = ctx.text_extents(ln)
+            line_metrics.append((wid,hei,xb,yb,xa,ya))
+            total_h += hei * (line_spacing if i < n - 1 else 1.0)
+
+        max_line_w = max(m[0] for m in line_metrics)
+        if max_line_w <= max_width:
+            return size, lines_out, line_metrics, total_h, len(lines_out) > 1
         size *= 0.92
-    # Fallback minimal size single line
+
     ctx.set_font_size(min_font_size)
     xb,yb,wid,hei,xa,ya = ctx.text_extents(text)
     return min_font_size, [text], [(wid,hei,xb,yb,xa,ya)], hei, False
@@ -182,7 +200,8 @@ def adaptive_circle_bubble(text, variant='radial5', target_inner_padding=20,
                             max_panel_fraction=0.3, min_font_size=12,
                             wrap=False, max_lines=2, ensure_inside=True, verify_attempts=8,
                             tail_target=None, tail_length_factor=0.55, tail_width_factor=0.28, tail_style='triangle',
-                            whitespace_scale=1.0, auto_whitespace=False):
+                            whitespace_scale=1.0, auto_whitespace=False, wrap_width_factor=0.75,
+                            free_box_inset=0.88):
     random.seed(seed)
     width,height = canvas_size
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
@@ -237,6 +256,7 @@ def adaptive_circle_bubble(text, variant='radial5', target_inner_padding=20,
     # Draw final bubble
     circles = gen(ctx, cx, cy, core_radius, text="", style='laugh', show_full_ovals=False, return_circles=True)
     fcx, fcy, fw, fh = find_free_bbox_circle(cx, cy, core_radius, circles, samples=140)
+    fw, fh = fw * free_box_inset, fh * free_box_inset
     tail_points = None
     if tail_target is not None:
         tx, ty = tail_target
@@ -275,7 +295,7 @@ def adaptive_circle_bubble(text, variant='radial5', target_inner_padding=20,
     if fw>0 and fh>0:
         max_font_attempt = min(fh*0.65, fw*0.40)
         if wrap and max_lines >= 2:
-            size, lines, line_metrics, total_h, wrapped = _wrap_two_lines(ctx, text, fw*0.82, max_font_attempt, min_font_size)
+            size, lines, line_metrics, total_h, wrapped = _wrap_n_lines(ctx, text, fw*wrap_width_factor, max_font_attempt, min_font_size, max_lines=max_lines)
             if size == min_font_size and len(lines)==1 and not wrapped:
                 font_shrunk = True
         else:
@@ -303,14 +323,14 @@ def adaptive_circle_bubble(text, variant='radial5', target_inner_padding=20,
                 font_shrunk = True
                 # final attempt recompute metrics at min_font_size
                 if wrap and max_lines>=2:
-                    size, lines, line_metrics, total_h, wrapped = _wrap_two_lines(ctx, text, fw*0.82, size, min_font_size)
+                    size, lines, line_metrics, total_h, wrapped = _wrap_n_lines(ctx, text, fw*wrap_width_factor, size, min_font_size, max_lines=max_lines)
                 else:
                     ctx.set_font_size(size)
                     xb,yb,tw,th,xa,ya = ctx.text_extents(text)
                     line_metrics=[(tw,th,xb,yb,xa,ya)]; total_h=th
                 break
             if wrap and max_lines>=2:
-                size, lines, line_metrics, total_h, wrapped = _wrap_two_lines(ctx, text, fw*0.82, new_start, min_font_size)
+                size, lines, line_metrics, total_h, wrapped = _wrap_n_lines(ctx, text, fw*wrap_width_factor, new_start, min_font_size, max_lines=max_lines)
             else:
                 ctx.set_font_size(new_start)
                 size = new_start
@@ -366,7 +386,8 @@ def adaptive_square_bubble(text, target_inner_padding=20, canvas_size=(600,600),
                             max_iterations=6, seed=5678, max_panel_fraction=0.3, min_font_size=12,
                             wrap=False, max_lines=2, ensure_inside=True, verify_attempts=8,
                             tail_target=None, tail_length_factor=0.55, tail_width_factor=0.28, tail_style='triangle',
-                            whitespace_scale=1.0, auto_whitespace=False):
+                            whitespace_scale=1.0, auto_whitespace=False, wrap_width_factor=0.75,
+                            free_box_inset=0.88):
     random.seed(seed)
     width,height = canvas_size
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
@@ -417,6 +438,7 @@ def adaptive_square_bubble(text, target_inner_padding=20, canvas_size=(600,600),
 
     circles = create_overlapping_circles_square(ctx, cx, cy, half_w*2, half_h*2, text="", circle_style='laugh', show_full_ovals=False, return_circles=True)
     fcx,fcy,fw,fh = find_free_bbox_rect(cx, cy, half_w, half_h, circles, samples=150)
+    fw, fh = fw * free_box_inset, fh * free_box_inset
     tail_points = None
     if tail_target is not None:
         tx, ty = tail_target
@@ -468,7 +490,7 @@ def adaptive_square_bubble(text, target_inner_padding=20, canvas_size=(600,600),
     if fw>0 and fh>0:
         max_font_attempt = min(fh*0.62, fw*0.38)
         if wrap and max_lines >= 2:
-            size, lines, line_metrics, total_h, wrapped = _wrap_two_lines(ctx, text, fw*0.80, max_font_attempt, min_font_size)
+            size, lines, line_metrics, total_h, wrapped = _wrap_n_lines(ctx, text, fw*wrap_width_factor, max_font_attempt, min_font_size, max_lines=max_lines)
             if size == min_font_size and len(lines)==1 and not wrapped:
                 font_shrunk = True
         else:
@@ -493,14 +515,14 @@ def adaptive_square_bubble(text, target_inner_padding=20, canvas_size=(600,600),
                 size = min_font_size
                 font_shrunk = True
                 if wrap and max_lines>=2:
-                    size, lines, line_metrics, total_h, wrapped = _wrap_two_lines(ctx, text, fw*0.80, size, min_font_size)
+                    size, lines, line_metrics, total_h, wrapped = _wrap_n_lines(ctx, text, fw*wrap_width_factor, size, min_font_size, max_lines=max_lines)
                 else:
                     ctx.set_font_size(size)
                     xb,yb,tw,th,xa,ya = ctx.text_extents(text)
                     line_metrics=[(tw,th,xb,yb,xa,ya)]; total_h=th
                 break
             if wrap and max_lines>=2:
-                size, lines, line_metrics, total_h, wrapped = _wrap_two_lines(ctx, text, fw*0.80, new_start, min_font_size)
+                size, lines, line_metrics, total_h, wrapped = _wrap_n_lines(ctx, text, fw*wrap_width_factor, new_start, min_font_size, max_lines=max_lines)
             else:
                 ctx.set_font_size(new_start)
                 size = new_start

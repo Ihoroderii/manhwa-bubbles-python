@@ -1,0 +1,141 @@
+╔══════════════════════════════════════════════════════════════╗
+║     YOLO MANGA CHARACTER DETECTION - QUICK START            ║
+╚══════════════════════════════════════════════════════════════╝
+
+✅ I created a complete YOLO implementation for you!
+
+┌──────────────────────────────────────────────────────────────┐
+│  🚀 RUN IT NOW (Copy & Paste):                               │
+└──────────────────────────────────────────────────────────────┘
+
+# Step 1: Install YOLO
+cd /Users/ihoroderii/wrk/bubble
+./install_yolo.sh
+
+# Step 2: Run demo
+python3 yolo_manga_detector.py
+
+# Step 3: Use with your manga
+python3 yolo_manga_detector.py my_manga.png "Text 1" "Text 2" "Text 3"
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  📁 FILES CREATED:                                           │
+└──────────────────────────────────────────────────────────────┘
+
+Main Implementation:
+  ✅ yolo_manga_detector.py      - YOLO detection + bubble placement
+  ✅ install_yolo.sh              - One-click installer
+  ✅ requirements-yolo.txt        - Dependencies list
+
+Documentation:
+  ✅ YOLO_README.md               - Overview and quick start
+  ✅ YOLO_USAGE.md                - Detailed usage guide
+  ✅ YOLO_QUICKSTART.txt          - This file
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  💡 WHAT IT DOES:                                            │
+└──────────────────────────────────────────────────────────────┘
+
+1. Load your manga image
+2. Use YOLO AI to detect all people/characters
+3. Estimate head positions
+4. Automatically place speech bubbles above heads
+5. Add your dialogue text
+6. Save the final image
+
+All automatic! 🎉
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  📖 PYTHON USAGE:                                            │
+└──────────────────────────────────────────────────────────────┘
+
+from yolo_manga_detector import process_your_manga
+
+# Simple usage
+process_your_manga(
+    'my_manga.png',
+    dialogues=['Hello!', 'Hi!', 'How are you?'],
+    confidence=0.3
+)
+
+# Output: output_my_manga.png with bubbles added!
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  ⚙️  CONFIGURATION:                                          │
+└──────────────────────────────────────────────────────────────┘
+
+Adjust detection sensitivity:
+  confidence=0.15  # Detect more people (more sensitive)
+  confidence=0.25  # Default (balanced)
+  confidence=0.50  # Detect fewer people (conservative)
+
+Choose YOLO model:
+  'yolov8n.pt'  # Fast, 6MB (recommended)
+  'yolov8s.pt'  # Better, 22MB
+  'yolov8m.pt'  # Best, 52MB
+
+Adjust bubble position:
+  bubble_offset_y=150  # Closer to head
+  bubble_offset_y=200  # Default
+  bubble_offset_y=300  # Further from head
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  🎯 WHAT YOLO DETECTS:                                       │
+└──────────────────────────────────────────────────────────────┘
+
+✅ Works well with:
+  - Realistic manga art
+  - Semi-realistic characters
+  - Clear human figures
+  - Full body or upper body shots
+
+⚠️  May struggle with:
+  - Very stylized/chibi art
+  - Extreme close-ups
+  - Abstract styles
+  
+  → Use manual click method for difficult styles
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  🔧 TROUBLESHOOTING:                                         │
+└──────────────────────────────────────────────────────────────┘
+
+Problem: No people detected
+Solution: Lower confidence to 0.15-0.20
+
+Problem: Too many false detections
+Solution: Increase confidence to 0.40-0.50
+
+Problem: Wrong bubble positions
+Solution: Adjust bubble_offset_y (150-300)
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  📚 DOCUMENTATION:                                           │
+└──────────────────────────────────────────────────────────────┘
+
+Quick overview:     YOLO_README.md
+Detailed guide:     YOLO_USAGE.md
+Alternative methods: MANGA_TESTING_GUIDE.md
+General usage:      START_HERE.md
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  ✅ NEXT STEPS:                                              │
+└──────────────────────────────────────────────────────────────┘
+
+1. Run: ./install_yolo.sh
+2. Test: python3 yolo_manga_detector.py
+3. Check the generated images
+4. Try with your manga!
+
+Need help? Read YOLO_README.md
+
+Happy manga lettering! 🎨
+

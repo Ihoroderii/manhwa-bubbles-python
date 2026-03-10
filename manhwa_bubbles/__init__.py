@@ -76,8 +76,12 @@ from .narrators import (
     narrator_dark,
     narrator_wavy
 )
+from .bubble_selector import select_bubble_style, list_emotions, BubbleStyle
+from .scenario_parser import parse_scenario, PanelData, DialogueEntry, Scenario, CharacterPosition
+from .placement import compute_placements, detect_characters, BubblePlacement
+from .pipeline import process_manga_page, process_panel, process_all_panels
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 __author__ = "Ihor Oderii"
 __email__ = "ihor.oderii@gmail.com"
 
@@ -142,4 +146,19 @@ __all__ = [
     'auto_scale_bubble_for_panel',
     'auto_scale_bubble_adaptive',
     'quick_auto_bubble',
+    # Pipeline API
+    'process_manga_page',
+    'process_panel',
+    'process_all_panels',
+    'select_bubble_style',
+    'list_emotions',
+    'BubbleStyle',
+    'parse_scenario',
+    'PanelData',
+    'DialogueEntry',
+    'Scenario',
+    'CharacterPosition',
+    'compute_placements',
+    'detect_characters',
+    'BubblePlacement',
 ]

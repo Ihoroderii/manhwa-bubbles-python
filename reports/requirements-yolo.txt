@@ -1,0 +1,17 @@
+# YOLO Manga Detection Requirements
+# Install with: pip3 install -r requirements-yolo.txt
+
+# Core dependencies
+ultralytics>=8.0.0      # YOLO v8 for person detection
+opencv-python>=4.8.0    # Image processing and visualization
+pillow>=10.0.0          # Image manipulation and compositing
+numpy>=1.24.0           # Array operations
+
+# Optional but recommended
+torch>=2.0.0            # PyTorch (YOLO backend) - will be installed by ultralytics
+torchvision>=0.15.0     # Vision utilities
+
+# For Cairo-based bubbles (optional)
+# Uncomment if you want advanced Cairo bubbles:
+# pycairo>=1.20.0
+

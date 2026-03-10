@@ -3,6 +3,7 @@ Auto-scaling wrapper for manga panel bubbles.
 Automatically adjusts bubble size based on panel dimensions.
 """
 
+import importlib
 import math
 import random
 from typing import Tuple, Optional, Dict
@@ -13,35 +14,30 @@ except ImportError:
     cairo = None
     _CAIRO_IMPORT_ERROR = "pycairo is required for auto-scaling"
 
-# Import the main bubble creation function
-# Try multiple import paths
 create_overlapping_circles_square = None
-point_inside_circle = None
 
-import sys
-import os
 
-# Try importing from experiments directory
-experiments_path = os.path.join(os.path.dirname(__file__), '..', 'examples', 'experiments')
-if os.path.exists(experiments_path):
-    sys.path.insert(0, experiments_path)
-    try:
-        from overlapping_circles_squares import (
-            create_overlapping_circles_square,
-            point_inside_circle
-        )
-    except ImportError:
-        pass
+def _load_overlapping_circles():
+    """Lazy-load create_overlapping_circles_square from experiments."""
+    global create_overlapping_circles_square
+    if create_overlapping_circles_square is not None:
+        return
 
-# Also try direct import
-if create_overlapping_circles_square is None:
-    try:
-        from examples.experiments.overlapping_circles_squares import (
-            create_overlapping_circles_square,
-            point_inside_circle
-        )
-    except ImportError:
-        pass
+    import os, sys
+    experiments_path = os.path.join(os.path.dirname(__file__), '..', 'examples', 'experiments')
+    if os.path.exists(experiments_path) and experiments_path not in sys.path:
+        sys.path.insert(0, experiments_path)
+
+    for module_path in (
+        'overlapping_circles_squares',
+        'examples.experiments.overlapping_circles_squares',
+    ):
+        try:
+            mod = importlib.import_module(module_path)
+            create_overlapping_circles_square = mod.create_overlapping_circles_square
+            return
+        except (ImportError, AttributeError):
+            continue
 
 
 def _ensure_cairo():
@@ -141,10 +137,14 @@ def auto_scale_bubble_for_panel(
         (surface, ctx, metadata_dict)
     """
     _ensure_cairo()
-    
+    _load_overlapping_circles()
+
     if create_overlapping_circles_square is None:
-        raise RuntimeError("create_overlapping_circles_square function not available")
-    
+        raise RuntimeError(
+            "create_overlapping_circles_square not found. "
+            "Ensure examples/experiments/overlapping_circles_squares.py exists."
+        )
+
     if seed is not None:
         random.seed(seed)
     
@@ -263,10 +263,14 @@ def auto_scale_bubble_adaptive(
         (surface, ctx, metadata)
     """
     _ensure_cairo()
-    
+    _load_overlapping_circles()
+
     if create_overlapping_circles_square is None:
-        raise RuntimeError("create_overlapping_circles_square function not available")
-    
+        raise RuntimeError(
+            "create_overlapping_circles_square not found. "
+            "Ensure examples/experiments/overlapping_circles_squares.py exists."
+        )
+
     if seed is not None:
         random.seed(seed)
     
@@ -381,7 +385,7 @@ def auto_scale_bubble_adaptive(
 
 
 def quick_auto_bubble(panel_size: Tuple[int, int], text: str = "", 
-                      style: str = "organic") -> cairo.ImageSurface:
+                      style: str = "organic"):
     """
     Quick helper: auto-scale bubble for panel.
     

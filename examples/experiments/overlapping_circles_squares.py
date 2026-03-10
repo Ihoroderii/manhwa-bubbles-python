@@ -792,6 +792,8 @@ def find_border_crossing_pixels(circle, square_left, square_right, square_top, s
     
     # Sample points around the circle perimeter with high resolution
     num_samples = int(max(rx, ry) * 6)  # High resolution sampling
+
+    print(f"num_samples: {num_samples}")
     
     for i in range(num_samples):
         angle = (2 * math.pi * i) / num_samples
@@ -1483,6 +1485,7 @@ def create_multiple_casual_examples(count=5, seed=None, width=420, height=320):
 
 def create_laugh_demo(seed=123, width=420, height=320):
     """Generate a single 'laugh' style bubble example (minimal arcs mode)."""
+    print(f"create_laugh_demo: seed: {seed}")
     random.seed(seed)
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
     ctx = cairo.Context(surface)
