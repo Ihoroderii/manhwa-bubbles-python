@@ -1,0 +1,10 @@
+# Core (always required)
+Pillow>=8.0.0
+
+# Cairo-based organic bubble rendering (required for the advanced overlapping bubbles)
+pycairo>=1.20.0
+
+# YOLO character detection (required to auto-detect character positions in images)
+ultralytics>=8.0.0
+opencv-python>=4.8.0
+numpy>=1.24.0
