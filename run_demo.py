@@ -107,7 +107,7 @@ DEMO_SCENARIO = {
             {
                 "character": "Sidekick",
                 "text": "I-I'm scared... but I'll fight!",
-                "emotion": "nervous",
+                "emotion": "simple",
                 "position_hint": "right",
             },
             {

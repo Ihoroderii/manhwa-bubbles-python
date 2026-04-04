@@ -1,9 +1,5 @@
 import cairo
 import math
-import gi
-gi.require_version("Pango", "1.0")
-gi.require_version("PangoCairo", "1.0")
-from gi.repository import Pango, PangoCairo
 
 def create_ellipse_bubble(ctx, cx, cy, rx, ry, text="Hello!", tail_position="bottom"):
     """Create an elliptical speech bubble with variable stroke width"""
@@ -188,32 +184,42 @@ def create_jagged_bubble(ctx, cx, cy, width, height, text="ANGRY!"):
     draw_centered_text(ctx, cx, cy, width, height, text, font_size=24, bold=True)
 
 def draw_centered_text(ctx, cx, cy, width, height, text, font_size=16, bold=False):
-    """Draw text centered in the given area using Pango"""
-    
-    layout = PangoCairo.create_layout(ctx)
-    
-    # Set font
-    font_weight = Pango.Weight.BOLD if bold else Pango.Weight.NORMAL
-    fontdesc = Pango.FontDescription(f"Sans {font_size}")
-    fontdesc.set_weight(font_weight)
-    layout.set_font_description(fontdesc)
-    
-    # Set text and wrapping
-    layout.set_text(text, -1)
-    layout.set_width(int(width * 0.8 * Pango.SCALE))  # 80% of bubble width
-    layout.set_alignment(Pango.Alignment.CENTER)
-    
-    # Get text dimensions
-    text_width, text_height = layout.get_pixel_size()
-    
-    # Position text at center
-    text_x = cx - text_width / 2
-    text_y = cy - text_height / 2
-    
-    # Draw text
-    ctx.set_source_rgb(0, 0, 0)  # black text
-    ctx.move_to(text_x, text_y)
-    PangoCairo.show_layout(ctx, layout)
+    """Draw text centered in the given area using Cairo's built-in text API"""
+
+    slant = cairo.FONT_SLANT_NORMAL
+    weight = cairo.FONT_WEIGHT_BOLD if bold else cairo.FONT_WEIGHT_NORMAL
+    ctx.select_font_face("Sans", slant, weight)
+    ctx.set_font_size(font_size)
+
+    # Word-wrap text to fit within 80% of bubble width
+    max_w = width * 0.8
+    words = text.split()
+    lines = []
+    current_line = ""
+    for word in words:
+        test = (current_line + " " + word).strip()
+        ext = ctx.text_extents(test)
+        if ext.width > max_w and current_line:
+            lines.append(current_line)
+            current_line = word
+        else:
+            current_line = test
+    if current_line:
+        lines.append(current_line)
+
+    # Measure total block height
+    line_height = font_size * 1.3
+    total_h = line_height * len(lines)
+
+    # Draw each line centered
+    ctx.set_source_rgb(0, 0, 0)
+    start_y = cy - total_h / 2 + font_size  # baseline of first line
+    for i, line in enumerate(lines):
+        ext = ctx.text_extents(line)
+        text_x = cx - ext.width / 2
+        text_y = start_y + i * line_height
+        ctx.move_to(text_x, text_y)
+        ctx.show_text(line)
 
 def create_manga_bubbles_demo():
     """Create a demo with various manga-style speech bubbles"""

@@ -71,6 +71,7 @@ class DialogueEntry:
     text: str
     emotion: str = "normal"
     position_hint: Optional[str] = None  # "left", "right", "center", "top", "bottom"
+    no_tail: bool = False
 
     def is_narration(self) -> bool:
         return self.emotion in ("narration", "narrator", "caption")
@@ -145,11 +146,14 @@ def _parse_dialogue(raw: dict, panel_id: int, idx: int) -> DialogueEntry:
         if position_hint not in _VALID_POSITION_HINTS:
             position_hint = None
 
+    no_tail = bool(raw.get("no_tail", False))
+
     return DialogueEntry(
         character=character,
         text=text,
         emotion=emotion,
         position_hint=position_hint,
+        no_tail=no_tail,
     )
 
 

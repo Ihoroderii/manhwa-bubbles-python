@@ -2,8 +2,15 @@
 Speech bubble functions for manhwa-style comics.
 """
 
-from PIL import ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 import math
+
+_cairo_available = False
+try:
+    import cairo as _cairo
+    _cairo_available = True
+except ImportError:
+    pass
 
 
 def bubble_heart(draw, xy, text):
@@ -99,7 +106,7 @@ def _bezier_point(t, p0, p1, p2, p3):
 
 def draw_tail(draw, x, y, direction="down", length=35, width=22):
     """
-    Draws a smooth curved tail using Bezier approximation.
+    Draws a smooth curved tail using Bezier approximation (PIL fallback).
 
     Args:
         draw: PIL ImageDraw object
@@ -148,7 +155,71 @@ def draw_tail(draw, x, y, direction="down", length=35, width=22):
     draw.polygon(points, fill="white", outline="black", width=2)
 
 
-def speech_bubble(draw, xy, text, bubble_type="oval", tail_dir="down"):
+def draw_tail_cairo(image, x, y, direction="down", length=35, width=22):
+    """Draw a smooth curved tail using PyCairo curve_to() and composite
+    onto a PIL Image.  Returns the updated image.
+
+    Args:
+        image: PIL Image (RGBA)
+        x, y: Attachment point on the bubble edge
+        direction: "down", "up", "left", "right"
+        length: How far the tail extends
+        width: Width at the base
+    """
+    hw = width / 2
+
+    if direction == "down":
+        p1 = (x - hw, y)
+        p2 = (x + hw, y)
+        tip = (x, y + length)
+        cp1 = (x - hw * 0.3, y + length * 0.55)
+        cp2 = (x + hw * 0.3, y + length * 0.55)
+    elif direction == "up":
+        p1 = (x - hw, y)
+        p2 = (x + hw, y)
+        tip = (x, y - length)
+        cp1 = (x - hw * 0.3, y - length * 0.55)
+        cp2 = (x + hw * 0.3, y - length * 0.55)
+    elif direction == "left":
+        p1 = (x, y - hw)
+        p2 = (x, y + hw)
+        tip = (x - length, y)
+        cp1 = (x - length * 0.55, y - hw * 0.3)
+        cp2 = (x - length * 0.55, y + hw * 0.3)
+    else:  # right
+        p1 = (x, y - hw)
+        p2 = (x, y + hw)
+        tip = (x + length, y)
+        cp1 = (x + length * 0.55, y - hw * 0.3)
+        cp2 = (x + length * 0.55, y + hw * 0.3)
+
+    img_w, img_h = image.size
+    surface = _cairo.ImageSurface(_cairo.FORMAT_ARGB32, img_w, img_h)
+    ctx = _cairo.Context(surface)
+
+    ctx.move_to(*p1)
+    ctx.curve_to(*cp1, *tip, *tip)
+    ctx.curve_to(*tip, *cp2, *p2)
+    ctx.close_path()
+
+    ctx.set_source_rgba(1, 1, 1, 1)
+    ctx.fill_preserve()
+    ctx.set_source_rgba(0, 0, 0, 0.95)
+    ctx.set_line_width(2.5)
+    ctx.stroke()
+
+    tail_pil = Image.frombuffer(
+        "RGBA",
+        (surface.get_width(), surface.get_height()),
+        surface.get_data(),
+        "raw", "BGRA", 0, 1,
+    )
+    image = image.convert("RGBA")
+    return Image.alpha_composite(image, tail_pil)
+
+
+def speech_bubble(draw, xy, text, bubble_type="oval", tail_dir="down",
+                  image=None, no_tail=False):
     """
     Draws different manhwa bubble types.
     
@@ -158,6 +229,10 @@ def speech_bubble(draw, xy, text, bubble_type="oval", tail_dir="down"):
         text: Text to display in the bubble
         bubble_type: Type of bubble ("oval", "rect", "cloud", "jagged", "wavy", "black", "heart", "spiky", "glow", "scratchy")
         tail_dir: Direction for the speech tail ("down", "up", "left", "right")
+        image: Optional PIL Image (RGBA) — when provided and Cairo is
+               available, the tail will be rendered with PyCairo curve_to().
+               Returns the updated image in that case.
+        no_tail: If True, skip drawing the tail.
     """
     x, y, w, h = xy
     text_color = "black"  # default
@@ -218,10 +293,39 @@ def speech_bubble(draw, xy, text, bubble_type="oval", tail_dir="down"):
         return  # scratchy bubble handles its own text
 
     # Tail (skip for special bubbles that handle their own rendering)
-    if bubble_type not in ["rect", "wavy", "heart", "spiky", "glow", "scratchy"]:
-        draw_tail(draw, x+w//2, y+h, direction=tail_dir)
+    if not no_tail and bubble_type not in ["rect", "wavy", "heart", "spiky", "glow", "scratchy"]:
+        if _cairo_available and image is not None:
+            image = draw_tail_cairo(image, x + w // 2, y + h,
+                                    direction=tail_dir)
+        else:
+            draw_tail(draw, x + w // 2, y + h, direction=tail_dir)
 
     # Add text (skip for special bubbles that handle their own text)
     if bubble_type not in ["heart", "spiky", "glow", "scratchy"]:
         font = ImageFont.load_default()
-        draw.text((x+10, y+10), text, font=font, fill=text_color)
+        # Simple word-wrap and center text inside the bubble
+        max_text_w = w - 20
+        words = text.split()
+        lines = []
+        current_line = ""
+        for word in words:
+            test = (current_line + " " + word).strip()
+            bbox = font.getbbox(test) if hasattr(font, 'getbbox') else (0, 0) + font.getsize(test)
+            tw = bbox[2] - bbox[0]
+            if tw > max_text_w and current_line:
+                lines.append(current_line)
+                current_line = word
+            else:
+                current_line = test
+        if current_line:
+            lines.append(current_line)
+        line_h = 12
+        total_h = len(lines) * line_h
+        start_y = y + (h - total_h) // 2
+        for i, line in enumerate(lines):
+            bbox = font.getbbox(line) if hasattr(font, 'getbbox') else (0, 0) + font.getsize(line)
+            tw = bbox[2] - bbox[0]
+            tx = x + (w - tw) // 2
+            draw.text((tx, start_y + i * line_h), line, font=font, fill=text_color)
+
+    return image

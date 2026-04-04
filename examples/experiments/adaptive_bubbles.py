@@ -269,31 +269,51 @@ def adaptive_circle_bubble(text, variant='radial5', target_inner_padding=20,
         attach_y = cy + uy * core_radius
         # perpendicular for width
         px, py = -uy, ux
-        tail_len = core_radius * tail_length_factor
-        tail_w = core_radius * tail_width_factor
-        tip_x = attach_x + ux * tail_len
-        tip_y = attach_y + uy * tail_len
-        p1x = attach_x + px * tail_w * 0.5
-        p1y = attach_y + py * tail_w * 0.5
-        p2x = attach_x - px * tail_w * 0.5
-        p2y = attach_y - py * tail_w * 0.5
-        # Smooth curved tail using Bezier control points
-        cp1x = p1x + ux * tail_len * 0.5 + px * tail_w * 0.15
-        cp1y = p1y + uy * tail_len * 0.5 + py * tail_w * 0.15
-        cp2x = p2x + ux * tail_len * 0.5 - px * tail_w * 0.15
-        cp2y = p2y + uy * tail_len * 0.5 - py * tail_w * 0.15
+        # Tip goes all the way to the target (head position)
+        tip_x = tx
+        tip_y = ty
+        tail_len = math.hypot(tip_x - attach_x, tip_y - attach_y) or 1.0
+        base_w = core_radius * tail_width_factor * 0.5  # half-width at base
+        tip_w = 1  # half-width at tip
+        # Control point at midpoint with lateral offset for curvature
+        mx = (attach_x + tip_x) / 2
+        my = (attach_y + tip_y) / 2
+        cp_offset = tail_len * 0.25
+        cpx = mx + px * cp_offset
+        cpy = my + py * cp_offset
         ctx.save()
-        ctx.set_source_rgba(1,1,1,1)
-        ctx.move_to(p1x, p1y)
-        ctx.curve_to(cp1x, cp1y, tip_x, tip_y, tip_x, tip_y)
-        ctx.curve_to(tip_x, tip_y, cp2x, cp2y, p2x, p2y)
+        # Step 1: white fill pushed INSIDE bubble to erase outline at junction
+        inset = core_radius * 0.1
+        ibx = attach_x - ux * inset
+        iby = attach_y - uy * inset
+        ctx.move_to(ibx + px * base_w, iby + py * base_w)
+        ctx.curve_to(cpx + px * base_w * 0.5, cpy + py * base_w * 0.5,
+                     cpx + px * tip_w, cpy + py * tip_w,
+                     tip_x + px * tip_w, tip_y + py * tip_w)
+        ctx.line_to(tip_x - px * tip_w, tip_y - py * tip_w)
+        ctx.curve_to(cpx - px * tip_w, cpy - py * tip_w,
+                     cpx - px * base_w * 0.5, cpy - py * base_w * 0.5,
+                     ibx - px * base_w, iby - py * base_w)
         ctx.close_path()
-        ctx.fill_preserve()
-        ctx.set_source_rgba(0,0,0,0.95)
+        ctx.set_source_rgba(1, 1, 1, 1)
+        ctx.fill()  # white fill only — no stroke
+        # Step 2: stroke only side curves (no base line at bubble)
+        ctx.move_to(attach_x + px * base_w, attach_y + py * base_w)
+        ctx.curve_to(cpx + px * base_w * 0.5, cpy + py * base_w * 0.5,
+                     cpx + px * tip_w, cpy + py * tip_w,
+                     tip_x + px * tip_w, tip_y + py * tip_w)
+        ctx.line_to(tip_x - px * tip_w, tip_y - py * tip_w)
+        ctx.curve_to(cpx - px * tip_w, cpy - py * tip_w,
+                     cpx - px * base_w * 0.5, cpy - py * base_w * 0.5,
+                     attach_x - px * base_w, attach_y - py * base_w)
+        # NOTE: no close_path() — base stays open, no seam at bubble
+        ctx.set_source_rgba(0, 0, 0, 0.95)
         ctx.set_line_width(2.2)
         ctx.stroke()
         ctx.restore()
-        tail_points = [(p1x,p1y),(p2x,p2y),(tip_x,tip_y)]
+        tail_points = [(attach_x + px * base_w, attach_y + py * base_w),
+                       (attach_x - px * base_w, attach_y - py * base_w),
+                       (tip_x, tip_y)]
     # place text with safe fitting
     font_shrunk = False
     lines = [text]; line_metrics=[]; size=0; total_h=0; wrapped=False
@@ -451,7 +471,6 @@ def adaptive_square_bubble(text, target_inner_padding=20, canvas_size=(600,600),
         dist = math.hypot(dx, dy) or 1.0
         ux, uy = dx/dist, dy/dist
         # clamp attach along rectangle edge by intersecting ray with rectangle bounds
-        # param t where cx+ux*t hits edge
         t_vals = []
         if ux != 0:
             t_vals.append(( (cx + half_w - cx)/ux ))  # right
@@ -469,31 +488,51 @@ def adaptive_square_bubble(text, target_inner_padding=20, canvas_size=(600,600),
         attach_x = cx + ux * attach_t
         attach_y = cy + uy * attach_t
         px, py = -uy, ux
-        tail_len = max(half_w, half_h) * tail_length_factor
-        tail_w = max(half_w, half_h) * tail_width_factor
-        tip_x = attach_x + ux * tail_len
-        tip_y = attach_y + uy * tail_len
-        p1x = attach_x + px * tail_w * 0.5
-        p1y = attach_y + py * tail_w * 0.5
-        p2x = attach_x - px * tail_w * 0.5
-        p2y = attach_y - py * tail_w * 0.5
-        # Smooth curved tail using Bezier control points
-        cp1x = p1x + ux * tail_len * 0.5 + px * tail_w * 0.15
-        cp1y = p1y + uy * tail_len * 0.5 + py * tail_w * 0.15
-        cp2x = p2x + ux * tail_len * 0.5 - px * tail_w * 0.15
-        cp2y = p2y + uy * tail_len * 0.5 - py * tail_w * 0.15
+        # Tip goes all the way to the target (head position)
+        tip_x = tx
+        tip_y = ty
+        tail_len = math.hypot(tip_x - attach_x, tip_y - attach_y) or 1.0
+        base_w = max(half_w, half_h) * tail_width_factor * 0.5  # half-width at base
+        tip_w = 1  # half-width at tip
+        # Control point at midpoint with lateral offset for curvature
+        mx = (attach_x + tip_x) / 2
+        my = (attach_y + tip_y) / 2
+        cp_offset = tail_len * 0.25
+        cpx = mx + px * cp_offset
+        cpy = my + py * cp_offset
         ctx.save()
-        ctx.set_source_rgba(1,1,1,1)
-        ctx.move_to(p1x, p1y)
-        ctx.curve_to(cp1x, cp1y, tip_x, tip_y, tip_x, tip_y)
-        ctx.curve_to(tip_x, tip_y, cp2x, cp2y, p2x, p2y)
+        # Step 1: white fill pushed INSIDE bubble to erase outline at junction
+        inset = max(half_w, half_h) * 0.08
+        ibx = attach_x - ux * inset
+        iby = attach_y - uy * inset
+        ctx.move_to(ibx + px * base_w, iby + py * base_w)
+        ctx.curve_to(cpx + px * base_w * 0.5, cpy + py * base_w * 0.5,
+                     cpx + px * tip_w, cpy + py * tip_w,
+                     tip_x + px * tip_w, tip_y + py * tip_w)
+        ctx.line_to(tip_x - px * tip_w, tip_y - py * tip_w)
+        ctx.curve_to(cpx - px * tip_w, cpy - py * tip_w,
+                     cpx - px * base_w * 0.5, cpy - py * base_w * 0.5,
+                     ibx - px * base_w, iby - py * base_w)
         ctx.close_path()
-        ctx.fill_preserve()
-        ctx.set_source_rgba(0,0,0,0.95)
+        ctx.set_source_rgba(1, 1, 1, 1)
+        ctx.fill()  # white fill only — no stroke
+        # Step 2: stroke only side curves (no base line at bubble)
+        ctx.move_to(attach_x + px * base_w, attach_y + py * base_w)
+        ctx.curve_to(cpx + px * base_w * 0.5, cpy + py * base_w * 0.5,
+                     cpx + px * tip_w, cpy + py * tip_w,
+                     tip_x + px * tip_w, tip_y + py * tip_w)
+        ctx.line_to(tip_x - px * tip_w, tip_y - py * tip_w)
+        ctx.curve_to(cpx - px * tip_w, cpy - py * tip_w,
+                     cpx - px * base_w * 0.5, cpy - py * base_w * 0.5,
+                     attach_x - px * base_w, attach_y - py * base_w)
+        # NOTE: no close_path() — base stays open, no seam at bubble
+        ctx.set_source_rgba(0, 0, 0, 0.95)
         ctx.set_line_width(2.2)
         ctx.stroke()
         ctx.restore()
-        tail_points = [(p1x,p1y),(p2x,p2y),(tip_x,tip_y)]
+        tail_points = [(attach_x + px * base_w, attach_y + py * base_w),
+                       (attach_x - px * base_w, attach_y - py * base_w),
+                       (tip_x, tip_y)]
 
     font_shrunk = False
     lines=[text]; line_metrics=[]; size=0; total_h=0; wrapped=False

@@ -98,12 +98,129 @@ class PipelineResult:
 
 
 # ---------------------------------------------------------------------------
-# PIL rendering helpers
+# Tail rendering — prefer PyCairo for true Bezier curves
 # ---------------------------------------------------------------------------
 
-def _draw_tail_pil(draw: ImageDraw.ImageDraw,
-                   placement: BubblePlacement) -> None:
-    """Draw a triangular tail from bubble center toward the character head."""
+_cairo_available = False
+try:
+    import cairo as _cairo
+    _cairo_available = True
+except ImportError:
+    pass
+
+
+def _draw_tail_cairo(image: Image.Image,
+                     placement: BubblePlacement) -> Image.Image:
+    """Draw a smooth tapered-curve tail using PyCairo.
+
+    The tail tapers from a wide base at the bubble to a narrow tip
+    pointing toward the speaker.  The junction with the bubble is
+    seamless: a white fill is pushed slightly *inside* the bubble
+    to erase its outline, and only the outer side-curves are stroked
+    (no base line), so no seam is visible.
+
+    Returns the updated image.
+    """
+    if placement.tail_target is None:
+        return image
+
+    r = placement.rect
+    hx, hy = placement.tail_target
+    bcx, bcy = r.cx, r.cy
+
+    dx = hx - bcx
+    dy = hy - bcy
+    dist = math.sqrt(dx * dx + dy * dy) or 1.0
+    ux, uy = dx / dist, dy / dist          # unit vector toward speaker
+
+    half_w, half_h = r.w / 2, r.h / 2
+    half_min = min(half_w, half_h)
+
+    # Attach point deep inside the bubble.  When the bubble is composited
+    # ON TOP, its opaque fill hides everything inside, so only the portion
+    # of the tail outside the bubble is visible — seamless junction.
+    attach_x = bcx + half_min * 0.35 * ux
+    attach_y = bcy + half_min * 0.35 * uy
+
+    # Tip goes all the way to the head (tail_target)
+    tip_x = hx
+    tip_y = hy
+    tail_len = math.sqrt((tip_x - attach_x) ** 2 + (tip_y - attach_y) ** 2) or 1.0
+
+    # Perpendicular direction for tail width
+    px, py = -uy, ux
+    base_w = max(18, half_min * 0.16)   # half-width at bubble end
+    tip_w  = 1                           # half-width at tip end
+
+    # Midpoint of the tail — control point offset for curvature
+    mx = (attach_x + tip_x) / 2
+    my = (attach_y + tip_y) / 2
+    cp_offset = tail_len * 0.20  # lateral bow proportional to length
+    cpx = mx + px * cp_offset
+    cpy = my + py * cp_offset
+
+    # Create a Cairo surface the same size as the full image
+    img_w, img_h = image.size
+    surface = _cairo.ImageSurface(_cairo.FORMAT_ARGB32, img_w, img_h)
+    ctx = _cairo.Context(surface)
+
+    # ------------------------------------------------------------------
+    # Step 1 — White fill from base to tip (tail interior).
+    # The base extends deep inside the bubble; the bubble composited
+    # on top covers it, so no inset trick is needed.
+    # ------------------------------------------------------------------
+    inset = half_min * 0.15
+    ibx = attach_x - ux * inset
+    iby = attach_y - uy * inset
+
+    ctx.move_to(ibx + px * base_w, iby + py * base_w)
+    ctx.curve_to(cpx + px * base_w * 0.5, cpy + py * base_w * 0.5,
+                 cpx + px * tip_w,         cpy + py * tip_w,
+                 tip_x + px * tip_w,       tip_y + py * tip_w)
+    ctx.line_to( tip_x - px * tip_w,       tip_y - py * tip_w)
+    ctx.curve_to(cpx - px * tip_w,         cpy - py * tip_w,
+                 cpx - px * base_w * 0.5,  cpy - py * base_w * 0.5,
+                 ibx - px * base_w,        iby - py * base_w)
+    ctx.close_path()
+    ctx.set_source_rgba(1, 1, 1, 1)
+    ctx.fill()          # white fill only — no stroke
+
+    # ------------------------------------------------------------------
+    # Step 2 — Stroke only the side curves (no base line at bubble).
+    # ------------------------------------------------------------------
+    # Left side curve
+    ctx.move_to(attach_x + px * base_w, attach_y + py * base_w)
+    ctx.curve_to(cpx + px * base_w * 0.5, cpy + py * base_w * 0.5,
+                 cpx + px * tip_w,         cpy + py * tip_w,
+                 tip_x + px * tip_w,       tip_y + py * tip_w)
+    # Tip connection
+    ctx.line_to(tip_x - px * tip_w, tip_y - py * tip_w)
+    # Right side curve (back toward bubble)
+    ctx.curve_to(cpx - px * tip_w,         cpy - py * tip_w,
+                 cpx - px * base_w * 0.5,  cpy - py * base_w * 0.5,
+                 attach_x - px * base_w,   attach_y - py * base_w)
+    # NOTE: no close_path() — base stays open so no line at the bubble
+
+    ctx.set_source_rgba(0, 0, 0, 0.95)
+    ctx.set_line_width(2.5)
+    ctx.stroke()
+
+    # Composite Cairo surface onto PIL image
+    tail_pil = Image.frombuffer(
+        "RGBA",
+        (surface.get_width(), surface.get_height()),
+        surface.get_data(),
+        "raw", "BGRA", 0, 1,
+    )
+    image = image.convert("RGBA")
+    image = Image.alpha_composite(image, tail_pil)
+    return image
+
+
+def _draw_tail_pil_fallback(draw: ImageDraw.ImageDraw,
+                            placement: BubblePlacement) -> None:
+    """Fallback: approximate curved tail with PIL polygon when Cairo is
+    not available."""
     if placement.tail_target is None:
         return
 
@@ -124,21 +241,18 @@ def _draw_tail_pil(draw: ImageDraw.ImageDraw,
     tip_x = attach_x + ux * tail_len
     tip_y = attach_y + uy * tail_len
 
-    # Perpendicular direction for tail width
     px, py = -uy, ux
     tw = 18
     base_left  = (attach_x + px * tw, attach_y + py * tw)
     base_right = (attach_x - px * tw, attach_y - py * tw)
     tip = (tip_x, tip_y)
 
-    # Bezier control points for smooth curved edges — slight outward bow
     cp_l = (attach_x + px * tw * 0.5 + ux * tail_len * 0.5,
             attach_y + py * tw * 0.5 + uy * tail_len * 0.5)
     cp_r = (attach_x - px * tw * 0.5 + ux * tail_len * 0.5,
             attach_y - py * tw * 0.5 + uy * tail_len * 0.5)
 
-    # Build smooth polygon via cubic Bezier sampling
-    steps = 12
+    steps = 14
     points = []
     for i in range(steps + 1):
         t = i / steps
@@ -157,17 +271,37 @@ def _draw_tail_pil(draw: ImageDraw.ImageDraw,
 
 
 def _render_pil_bubble(draw: ImageDraw.ImageDraw,
-                       placement: BubblePlacement) -> None:
-    """Render a PIL-engine bubble onto *draw*."""
+                       placement: BubblePlacement,
+                       image: Image.Image = None) -> Image.Image:
+    """Render a PIL-engine bubble onto *draw*.
+
+    When PyCairo is available the tail is drawn with real Bezier curves
+    on a Cairo surface and composited back.  Returns the (possibly updated)
+    *image*.
+    """
     r = placement.rect
     xy = (r.x, r.y, r.w, r.h)
     text = placement.dialogue.text
     style = placement.style
 
+    no_tail = placement.dialogue.no_tail
+
+    # Draw tail FIRST (underneath) so the bubble sits on top
+    if not no_tail:
+        if _cairo_available and image is not None:
+            image = _draw_tail_cairo(image, placement)
+            draw = ImageDraw.Draw(image)
+        else:
+            _draw_tail_pil_fallback(draw, placement)
+
     if style.bubble_type:
-        speech_bubbles.speech_bubble(draw, xy, text,
-                                     bubble_type=style.bubble_type,
-                                     tail_dir="down")
+        result = speech_bubbles.speech_bubble(draw, xy, text,
+                                              bubble_type=style.bubble_type,
+                                              tail_dir="down",
+                                              image=image,
+                                              no_tail=True)
+        if result is not None:
+            image = result
     elif style.draw_func is not None:
         try:
             style.draw_func(draw, xy, text, **style.pil_kwargs)
@@ -179,7 +313,28 @@ def _render_pil_bubble(draw: ImageDraw.ImageDraw,
         font = ImageFont.load_default()
         draw.text((r.x + 10, r.y + 10), text, font=font, fill="black")
 
-    _draw_tail_pil(draw, placement)
+    # Erase bubble outline where tail connects for seamless junction
+    if not no_tail and placement.tail_target is not None:
+        hx, hy = placement.tail_target
+        half_w, half_h = r.w / 2, r.h / 2
+        half_min = min(half_w, half_h)
+        base_w = max(18, half_min * 0.16)  # must match _draw_tail_cairo
+        # Compute the angular span the tail base covers on the ellipse
+        angle_rad = math.atan2(hy - r.cy, hx - r.cx)
+        # At angle_rad, the ellipse radius is:
+        cos_a = math.cos(angle_rad)
+        sin_a = math.sin(angle_rad)
+        ellipse_r = (half_w * half_h) / math.sqrt(
+            (half_h * cos_a) ** 2 + (half_w * sin_a) ** 2)
+        # Angular span = arctan(base_w / ellipse_radius)
+        gap_deg = math.degrees(math.atan2(base_w, ellipse_r))
+        angle_deg = math.degrees(angle_rad)
+        ellipse_bbox = (r.x, r.y, r.x2, r.y2)
+        draw = ImageDraw.Draw(image)
+        draw.arc(ellipse_bbox, start=angle_deg - gap_deg,
+                 end=angle_deg + gap_deg, fill="white", width=5)
+
+    return image
 
 
 # ---------------------------------------------------------------------------
@@ -210,6 +365,9 @@ def _render_cairo_adaptive(image: Image.Image,
     canvas_size = (r.w, r.h)
     variant = placement.style.cairo_kwargs.get("variant", "radial5")
 
+    # Render bubble shape WITHOUT tail — the tail will be drawn
+    # separately on the full image so it can extend to the head
+    # without being clipped by the small bubble canvas.
     surface = None
     if engine == "cairo_circle" and _adaptive_circle_bubble is not None:
         surface, _meta = _adaptive_circle_bubble(
@@ -220,7 +378,7 @@ def _render_cairo_adaptive(image: Image.Image,
             wrap=True,
             max_lines=4,
             max_iterations=8,
-            tail_target=tail_target,
+            tail_target=None,           # tail drawn separately below
             max_panel_fraction=0.82,
             target_inner_padding=12,
             min_font_size=14,
@@ -235,7 +393,7 @@ def _render_cairo_adaptive(image: Image.Image,
             wrap=True,
             max_lines=4,
             max_iterations=8,
-            tail_target=tail_target,
+            tail_target=None,           # tail drawn separately below
             max_panel_fraction=0.82,
             target_inner_padding=12,
             min_font_size=14,
@@ -256,6 +414,13 @@ def _render_cairo_adaptive(image: Image.Image,
     )
 
     image = image.convert("RGBA")
+
+    # Draw the tail FIRST (underneath), then composite the bubble ON TOP.
+    # The bubble's opaque fill naturally covers the tail's base, creating a
+    # perfectly seamless junction — no gap, no white-fill trick needed.
+    if _cairo_available:
+        image = _draw_tail_cairo(image, placement)
+
     temp = Image.new("RGBA", image.size, (0, 0, 0, 0))
     paste_x = max(0, min(r.x, image.width - bubble_pil.width))
     paste_y = max(0, min(r.y, image.height - bubble_pil.height))
@@ -333,7 +498,8 @@ def process_panel(
             image = _render_cairo_adaptive(image, p)
             draw = ImageDraw.Draw(image)
         else:
-            _render_pil_bubble(draw, p)
+            image = _render_pil_bubble(draw, p, image=image)
+            draw = ImageDraw.Draw(image)
 
     # 5. Save
     image.save(output_path)

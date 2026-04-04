@@ -37,7 +37,11 @@ def demo_speech_bubbles():
     # NEW: Examples of new bubble types
     speech_bubble(draw, (650, 50, 180, 120), "Love~", "heart")
     speech_bubble(draw, (850, 50, 180, 120), "RAGE!!", "spiky")
-    speech_bubble(draw, (650, 220, 180, 120), "Divine voice", "glow")
+    # Simple oval bubble (no tail) — most common manga bubble shape
+    x, y, w, h = 650, 220, 180, 120
+    draw.ellipse((x, y, x+w, y+h), fill="white", outline="black", width=3)
+    draw.text((x+30, y+45), "Simple oval", fill="black")
+
     speech_bubble(draw, (850, 220, 180, 120), "Madness...", "scratchy")
     
     # Add labels for original types
@@ -51,7 +55,7 @@ def demo_speech_bubbles():
     # Add labels for new types
     draw.text((650, 180), "Heart", fill="red")
     draw.text((850, 180), "Spiky", fill="black")
-    draw.text((650, 350), "Glow", fill="gold")
+    draw.text((650, 350), "Simple", fill="black")
     draw.text((850, 350), "Scratchy", fill="black")
     
     img.save("examples/speech_bubbles_demo.png")
@@ -113,7 +117,10 @@ def demo_comic_panel():
     # NEW: Using new bubble types
     speech_bubble(draw, (100, 300, 180, 100), "I love you!", "heart", "down")
     speech_bubble(draw, (350, 280, 200, 120), "IMPOSSIBLE!!", "spiky", "up")
-    speech_bubble(draw, (600, 350, 200, 100), "By the gods...", "glow", "left")
+    # Simple oval bubble (no tail)
+    gx, gy, gw, gh = 600, 350, 200, 100
+    draw.ellipse((gx, gy, gx+gw, gy+gh), fill="white", outline="black", width=3)
+    draw.text((gx+20, gy+35), "By the gods...", fill="black")
     speech_bubble(draw, (850, 300, 200, 120), "Must... kill...", "scratchy", "down")
     
     # Internal monologue

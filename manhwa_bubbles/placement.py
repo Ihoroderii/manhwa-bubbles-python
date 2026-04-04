@@ -518,10 +518,14 @@ def compute_placements(
             if best is None:
                 best = candidates[0]
 
-            tail_target = det.head
-            dx = det.head[0] - best.cx
-            dy = det.head[1] - best.cy
-            tail_angle = math.atan2(dy, dx)
+            if entry.no_tail:
+                tail_target = None
+                tail_angle = 0.0
+            else:
+                tail_target = det.head
+                dx = det.head[0] - best.cx
+                dy = det.head[1] - best.cy
+                tail_angle = math.atan2(dy, dx)
 
         else:
             margin = 20

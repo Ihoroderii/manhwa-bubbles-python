@@ -62,6 +62,11 @@ _EMOTION_MAP = {
     ],
     "neutral": "normal",
 
+    # --- Simple (PIL oval only, no Cairo) ---
+    "simple": [
+        ("oval", "pil", {"bubble_type": "oval"}),
+    ],
+
     # --- Shouting / angry ---
     "shouting": [
         _cc("radial7"),

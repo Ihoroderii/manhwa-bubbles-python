@@ -1,0 +1,46 @@
+============================================================
+  MANGA BUBBLE PIPELINE - LIVE DEMO
+============================================================
+Creating demo manga panel...
+  -> Saved: demo_manga_panel.png
+  -> Size: 1000x1400
+
+Running YOLO character detection...
+  YOLO found 0 characters (using scenario character positions instead)
+
+  Scenario provides 3 known character position(s):
+    Hero       bbox=[175, 560, 265, 900] head=[220, 600]
+    Villain    bbox=[465, 610, 535, 860] head=[500, 650]
+    Sidekick   bbox=[745, 570, 815, 910] head=[780, 610]
+
+Scenario (what the LLM would generate):
+  Hero       [shouting  ] -> shout_burst (pil)
+             "We have to stop him before it's too late!"
+  Villain    [dark      ] -> inverted_aura (pil)
+             "Fools... you cannot comprehend my power."
+  Sidekick   [nervous   ] -> shock_mini_spike (pil)
+             "I-I'm scared... but I'll fight!"
+  Narrator   [narration ] -> narrator_borderless (pil)
+             "The final confrontation was about to begin..."
+
+Running pipeline...
+
+Result saved: demo_result.png
+Detections used: 3
+Bubbles placed: 4
+  [cairo_circle_radial7     ] (  80, 296) 280x277  "We have to stop him before it's too..." -> tail to (220,600)
+  [cairo_circle_radial7     ] ( 500, 263) 280x277  "Fools... you cannot comprehend my p..." -> tail to (500,650)
+  [shock_mini_spike         ] ( 808, 550) 192x80  "I-I'm scared... but I'll fight!..." -> tail to (780,610)
+  [narrator_dark            ] ( 325,  15) 350x80  "The final confrontation was about t..."
+
+============================================================
+  Open demo_result.png to see the result!
+============================================================
+
+All supported emotions:
+  choral, cold, crying, dark, digital
+  drunk, echo, ghost, horror, hypnotic
+  laughing, magic, narration, normal, radio
+  rage, robotic, romantic, sarcastic, scared
+  sfx, shouting, sleepy, telepathy, thinking
+  whispering
