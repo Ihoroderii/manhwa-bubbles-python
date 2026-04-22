@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="manhwa-bubbles",
-    version="1.1.0",
+    version="1.2.0",
     author="Ihor Oderii",
     author_email="ihor.oderii@gmail.com",
     description="A Python library for creating manhwa-style speech bubbles and narration boxes",
